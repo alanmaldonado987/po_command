@@ -1,0 +1,23 @@
+# Dependencias y compilados
+node_modules/
+dist/
+.e2e-dist/
+.vercel/
+
+# Secretos y entorno local
+.env
+.env.*
+!.env.example
+
+# Resultados de pruebas
+test-results/
+playwright-report/
+
+# Datos internos (no se publican)
+data_inicial/
+
+# Sistema y editor
+.DS_Store
+Thumbs.db
+*.log
+.claude/

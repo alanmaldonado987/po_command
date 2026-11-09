@@ -1,0 +1,28 @@
+project_id = "po-command"
+
+[api]
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+
+[auth]
+enable_signup = false
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+
+[auth.email]
+enable_confirmations = false
+
+[functions.alertas]
+verify_jwt = true
+
+[functions.correo]
+verify_jwt = true
+
+[functions.ia]
+verify_jwt = true
+
+[functions.clickup]
+verify_jwt = true
+
+[functions.clickup-webhook]
+verify_jwt = false

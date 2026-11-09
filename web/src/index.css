@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink-soft antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight text-ink;
+  }
+
+  ::selection {
+    @apply bg-brand-soft;
+  }
+}
+
+@layer components {
+  .material-symbols-rounded {
+    font-family: 'Material Symbols Rounded';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  .field-label {
+    @apply mb-1 block text-xs font-semibold text-ink-soft;
+  }
+
+  .field-control {
+    @apply min-h-[40px] w-full rounded-[10px] border border-line bg-white px-3 text-sm text-ink
+      placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20
+      disabled:cursor-not-allowed disabled:bg-line-soft disabled:text-ink-muted;
+  }
+}
