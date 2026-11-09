@@ -14,7 +14,7 @@ async function guardarPrioridad(page, codigo, prioridad) {
   await abrirItem(page, codigo)
   await page.getByRole('combobox', { name: 'Prioridad' }).selectOption(prioridad)
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
-  await expect(toast(page, `${codigo} guardado en la base de datos.`)).toBeVisible()
+  await expect(toast(page, `${codigo} guardado en la base de datos.`).first()).toBeVisible()
   await fila(page, codigo).click()
 }
 
@@ -60,7 +60,7 @@ test.describe('Backlog · prioridad', () => {
     expect(itemsActivos(backend).find((i) => i.codigo === 'BL-009').prioridad).toBeNull()
   })
 
-  test('filtra por prioridad, incluida «Sin prioridad»', async ({ paginaAutenticada: page, backend }) => {
+  test('filtra por una o varias prioridades', async ({ paginaAutenticada: page }) => {
     await guardarPrioridad(page, 'BL-009', 'Urgente')
     await guardarPrioridad(page, 'BL-010', 'Normal')
     await page.getByText('Más filtros').click()
@@ -71,10 +71,16 @@ test.describe('Backlog · prioridad', () => {
 
     await elegirOpciones(page, 'Prioridad', ['Normal'])
     await expect(filasDatos(page)).toHaveCount(2)
+    await expect(fila(page, 'BL-010')).toBeVisible()
+  })
 
-    await elegirOpciones(page, 'Prioridad', ['Urgente', 'Normal'])
+  test('«Sin prioridad» deja solo los ítems que no la tienen', async ({ paginaAutenticada: page, backend }) => {
+    await guardarPrioridad(page, 'BL-009', 'Urgente')
+    await page.getByText('Más filtros').click()
+
     await elegirOpciones(page, 'Prioridad', ['Sin prioridad'])
-    await expect(filasDatos(page)).toHaveCount(itemsActivos(backend).length - 2)
+    await expect(filasDatos(page)).toHaveCount(itemsActivos(backend).length - 1)
+    await expect(fila(page, 'BL-009')).toHaveCount(0)
   })
 
   test('ordenar por prioridad pone primero Urgente y al final los sin prioridad', async ({ paginaAutenticada: page }) => {
@@ -103,7 +109,7 @@ test.describe('Backlog · prioridad · accesibilidad', () => {
     await expect(page.getByRole('combobox', { name: 'Prioridad' })).toBeVisible()
     await page.getByRole('combobox', { name: 'Prioridad' }).selectOption('Urgente')
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(toast(page, 'BL-009 guardado en la base de datos.')).toBeVisible()
+    await expect(toast(page, 'BL-009 guardado en la base de datos.').first()).toBeVisible()
     const celda = fila(page, 'BL-009').getByRole('cell').filter({ hasText: 'Urgente' })
     await expect(celda).toHaveText(/Urgente/)
     await expect(celda.locator('[aria-hidden="true"]').first()).toHaveText('flag')
