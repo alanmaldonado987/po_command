@@ -11,6 +11,7 @@ import {
   leerBloque,
   msAFecha,
   msAIso,
+  normalizarEstado,
   prioridadAClickUp,
   prioridadDeTarea,
 } from "../_shared/clickup_tarea.ts"
@@ -146,6 +147,22 @@ Deno.test("estadoClickUpDe devuelve el estado mapeado o undefined si no hay mape
   assertEquals(estadoClickUpDe({ "En curso": "en desarrollo" }, "En curso"), "en desarrollo")
   assertEquals(estadoClickUpDe({ "En curso": "en desarrollo" }, "Terminado"), undefined)
   assertEquals(estadoClickUpDe({ "En curso": "" }, "En curso"), undefined)
+})
+
+Deno.test("estadoClickUpDe envía el primer nombre de la lista y ignora los vacíos", () => {
+  const mapeo = { "Terminado, en etapa de pruebas": ["Validación", "Listo para entregar"], "En curso": ["", "  ", "En desarrollo"], Suspendido: [] }
+  assertEquals(estadoClickUpDe(mapeo, "Terminado, en etapa de pruebas"), "Validación")
+  assertEquals(estadoClickUpDe(mapeo, "En curso"), "En desarrollo")
+  assertEquals(estadoClickUpDe(mapeo, "Suspendido"), undefined)
+  assertEquals(estadoClickUpDe(mapeo, "Terminado"), undefined)
+})
+
+Deno.test("normalizarEstado deja solo letras y dígitos sin tildes ni mayúsculas", () => {
+  assertEquals(normalizarEstado("☑ ENTREGADO"), "entregado")
+  assertEquals(normalizarEstado("🔍 Validación"), "validacion")
+  assertEquals(normalizarEstado("  Listo-para_entregar! "), "listoparaentregar")
+  assertEquals(normalizarEstado("🧑‍💻 En desarrollo"), "endesarrollo")
+  assertEquals(normalizarEstado("🔍"), "")
 })
 
 Deno.test("la prioridad de la app se traduce a la de ClickUp: Urgente 1, Alta 2, Normal 3, Baja 4 y sin prioridad null", () => {

@@ -8,7 +8,7 @@ export const ESTADOS_APP: EstadoApp[] = [
   "Suspendido",
 ]
 
-export type MapeoEstados = Record<string, string>
+export type MapeoEstados = Record<string, string | string[]>
 
 export interface ConfigClickUp {
   habilitado: boolean

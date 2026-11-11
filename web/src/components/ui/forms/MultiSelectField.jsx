@@ -3,9 +3,12 @@ import { Icon } from '../Icon'
 import { Popover } from '../Popover'
 import { aOpciones } from './SelectField'
 
-export function MultiSelectField({ label, opciones, value = [], onChange, placeholder = 'Todos', className }) {
+export function MultiSelectField({ label, opciones, value = [], onChange, placeholder = 'Todos', className, enOrdenDeSeleccion = false }) {
   const lista = aOpciones(opciones)
-  const etiquetas = lista.filter((opcion) => value.includes(opcion.value)).map((opcion) => opcion.label)
+  const elegidas = enOrdenDeSeleccion
+    ? value.map((valor) => lista.find((opcion) => opcion.value === valor)).filter(Boolean)
+    : lista.filter((opcion) => value.includes(opcion.value))
+  const etiquetas = elegidas.map((opcion) => opcion.label)
   const alternar = (valor) =>
     onChange(value.includes(valor) ? value.filter((actual) => actual !== valor) : [...value, valor])
 

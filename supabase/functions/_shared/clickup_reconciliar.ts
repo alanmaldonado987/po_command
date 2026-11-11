@@ -39,7 +39,7 @@ async function verificarVinculadasAusentes(
   }
 }
 
-export async function reconciliar(tableroId: number | null = null): Promise<ResumenReconciliacion> {
+export async function reconciliar(tableroId: number | null = null, forzar = false): Promise<ResumenReconciliacion> {
   const config = await obtenerConfigClickUp()
   const total: ResumenReconciliacion = { creadas: 0, actualizadas: 0, archivadas: 0 }
   if (!config.habilitado || !config.token) return total
@@ -50,10 +50,10 @@ export async function reconciliar(tableroId: number | null = null): Promise<Resu
   for (const lista of listas) {
     for (const tarea of await cliente.tareasDeLista(lista)) {
       vistas.add(tarea.id)
-      sumar(total, await aplicarCambio(tarea, "reconciliar"))
+      sumar(total, await aplicarCambio(tarea, "reconciliar", null, forzar))
     }
     for (const tarea of await cliente.tareasDeLista(lista, true)) {
-      sumar(total, await aplicarCambio({ ...tarea, archived: true }, "reconciliar"))
+      sumar(total, await aplicarCambio({ ...tarea, archived: true }, "reconciliar", null, forzar))
     }
   }
   if (tableroId === null) await verificarVinculadasAusentes(cliente, vistas, total)

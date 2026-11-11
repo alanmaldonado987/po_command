@@ -103,6 +103,29 @@ Deno.test("guardar_config valida habilitado, equipo_id y el mapeo de estados", a
   assertEquals(estadoDesconocido.estado, 400)
   assertStringIncludes(String(estadoDesconocido.datos.error), "Estado desconocido")
   assertEquals((await llamar({ accion: "guardar_config", mapeo_estados: { "En curso": 5 } })).estado, 400)
+  assertEquals((await llamar({ accion: "guardar_config", mapeo_estados: { "En curso": ["a", 2] } })).estado, 400)
+  assertEquals((await llamar({ accion: "guardar_config", mapeo_estados: { "En curso": { nombre: "a" } } })).estado, 400)
+  assertEquals((await llamar({ accion: "guardar_config", mapeo_estados: { "En curso": null } })).estado, 400)
+})
+
+Deno.test("guardar_config acepta varios nombres de ClickUp por estado y los limpia", async () => {
+  const entorno = entornoClickUp()
+  const mapeo = {
+    "No iniciado": ["Pendiente"],
+    "En curso": " En desarrollo ",
+    "Terminado, en etapa de pruebas": ["Validación", "  Listo para entregar ", ""],
+    Terminado: ["Entregado"],
+  }
+  const respuesta = await llamar({ accion: "guardar_config", mapeo_estados: mapeo })
+  assertEquals(respuesta.estado, 200)
+  const guardado = {
+    "No iniciado": ["Pendiente"],
+    "En curso": " En desarrollo ",
+    "Terminado, en etapa de pruebas": ["Validación", "Listo para entregar"],
+    Terminado: ["Entregado"],
+  }
+  assertEquals(entorno.base.filas("clickup_config")[0].mapeo_estados, guardado)
+  assertEquals(respuesta.datos.mapeo_estados, guardado)
 })
 
 Deno.test("guardar_config actualiza el mapeo de estados", async () => {
@@ -216,6 +239,24 @@ Deno.test("reconciliar devuelve los contadores", async () => {
   entorno.cliente.tareasPorLista = { "L-1": [tareaClickUp({ id: "A" })] }
   entorno.base.manejadoresRpc.aplicar_cambio_clickup = () => ({ resultado: "creado" })
   assertEquals((await llamar({ accion: "reconciliar" })).datos, { creadas: 1, actualizadas: 0, archivadas: 0 })
+})
+
+Deno.test("reconciliar acepta forzar y lo propaga solo cuando es verdadero", async () => {
+  const entorno = entornoClickUp()
+  entorno.cliente.tareasPorLista = { "L-1": [tareaClickUp({ id: "A" })] }
+  entorno.base.manejadoresRpc.aplicar_cambio_clickup = () => ({ resultado: "actualizado" })
+  const forzada = await llamar({ accion: "reconciliar", forzar: true })
+  assertEquals(forzada.datos, { creadas: 0, actualizadas: 1, archivadas: 0 })
+  const sinForzar = await llamar({ accion: "reconciliar", forzar: false })
+  assertEquals(sinForzar.estado, 200)
+  const argumentos = entorno.base.rpcs.filter((r) => r.nombre === "aplicar_cambio_clickup").map((r) => r.argumentos as Record<string, unknown>)
+  assertEquals(argumentos.map((a) => a.p_forzar), [true, undefined])
+})
+
+Deno.test("reconciliar rechaza un valor de forzar que no sea booleano", async () => {
+  entornoClickUp()
+  assertEquals((await llamar({ accion: "reconciliar", forzar: "si" })).estado, 400)
+  assertEquals((await llamar({ accion: "reconciliar", forzar: 1 })).estado, 400)
 })
 
 Deno.test("importar_existentes valida la entrada y devuelve las importadas", async () => {

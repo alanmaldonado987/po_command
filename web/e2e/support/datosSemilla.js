@@ -193,7 +193,7 @@ export function crearSemilla() {
     clickup_tablero: [],
     clickup_destino: [],
     clickup_cola: [],
-    clickup: { token: '', equipo: null, habilitado: false, webhook_registrado: false, mapeo_estados: {}, ultimo_sync: null },
+    clickup: { token: '', equipo: null, habilitado: false, webhook_registrado: false, mapeo_estados: {}, ultimo_sync: null, estados_remotos: {} },
     smtp: { host: 'smtp.office365.com', puerto: 587, seguridad: 'starttls', usuario: '', password: '', remitente: '', nombre_remitente: 'PO Command Center', dry_run: true },
   }
 }

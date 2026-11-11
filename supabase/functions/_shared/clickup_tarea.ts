@@ -163,7 +163,14 @@ export function construirCuerpoActualizacion(
   }
 }
 
-export const estadoClickUpDe = (mapeo: MapeoEstados, estadoApp: string): string | undefined => mapeo[estadoApp] || undefined
+export const normalizarEstado = (nombre: string): string =>
+  nombre.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]/g, "")
+
+export function estadoClickUpDe(mapeo: MapeoEstados, estadoApp: string): string | undefined {
+  const valor = mapeo[estadoApp]
+  const nombres = Array.isArray(valor) ? valor : [valor]
+  return nombres.find((nombre) => typeof nombre === "string" && nombre.trim() !== "")
+}
 
 export function mapeosDeMovimiento(
   actual: TareaClickUp,
@@ -172,9 +179,9 @@ export function mapeosDeMovimiento(
 ): MapeoEstadoMovimiento[] {
   const origen = actual.status
   const estados = destino.statuses ?? []
-  if (!origen?.id || estados.some((estado) => normalizarEtiqueta(estado.status) === normalizarEtiqueta(origen.status))) return []
+  if (!origen?.id || estados.some((estado) => normalizarEstado(estado.status) === normalizarEstado(origen.status))) return []
   const elegido =
-    estados.find((estado) => estadoObjetivo && normalizarEtiqueta(estado.status) === normalizarEtiqueta(estadoObjetivo)) ??
+    estados.find((estado) => estadoObjetivo && normalizarEstado(estado.status) === normalizarEstado(estadoObjetivo)) ??
     estados.find((estado) => estado.type === "open") ??
     estados[0]
   return elegido?.id ? [{ source_status: origen.id, destination_status: elegido.id }] : []

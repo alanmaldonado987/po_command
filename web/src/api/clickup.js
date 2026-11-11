@@ -11,7 +11,8 @@ export const obtenerJerarquiaClickUp = (equipoId) => clickup('jerarquia', { equi
 export const registrarWebhookClickUp = () => clickup('registrar_webhook')
 export const quitarWebhookClickUp = () => clickup('quitar_webhook')
 export const sincronizarClickUp = () => clickup('sincronizar')
-export const reconciliarClickUp = () => clickup('reconciliar')
+export const reconciliarClickUp = ({ tableroId = null, forzar = false } = {}) =>
+  clickup('reconciliar', { ...(tableroId !== null && { tablero_id: tableroId }), ...(forzar && { forzar: true }) })
 export const importarExistentesClickUp = ({ listaId, clienteId = null, tableroId = null }) =>
   clickup('importar_existentes', { lista_id: listaId, cliente_id: clienteId, tablero_id: tableroId })
 

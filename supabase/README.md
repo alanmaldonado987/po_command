@@ -98,14 +98,36 @@ Crear, editar y eliminar ítems se refleja en ClickUp, y los cambios hechos en C
    ```
 
    La migración `20261106000007_clickup_tableros.sql` añade los tableros; si ya tenías la integración desplegada, aplícala y vuelve a desplegar `clickup` y `clickup-webhook`.
+   La migración `20261106000009_mapeo_estados_multiple.sql` permite varios nombres de ClickUp por estado de la app, compara los nombres sin emojis ni tildes, trata el tipo `done` como Terminado y añade la reconciliación forzada. Tras `db push`, vuelve a desplegar `clickup` (el webhook no cambia) y sigue [Mapeo de estados](#mapeo-de-estados).
    La migración `20261106000008_prioridad.sql` añade la prioridad de los ítems. Tras desplegarla, **quita el webhook y vuelve a registrarlo** desde la app para suscribirlo también al evento `taskPriorityUpdated`; el webhook ya registrado conserva los eventos con los que se creó.
 
 2. Ejecuta de nuevo `cron.sql` en el SQL Editor (añade los jobs `po-clickup-sincronizar`, cada minuto, y `po-clickup-reconciliar`, cada 10 minutos).
 3. En la app (pantalla de integración): pega tu token personal de ClickUp (ClickUp → Configuración → Apps → API Token), pulsa **Probar**, elige el equipo y guarda.
 4. Configura los destinos en `clickup_destino` (ver [Tableros](#tableros-desarrollo-analítica)): como mínimo una lista por defecto (`tablero_id` y `cliente_id` nulos) y, si quieres, listas por cliente y por tablero. Sin destino, el envío queda en `Fallida` con el mensaje «Sin destino configurado para {tablero} / {cliente}».
-5. Revisa el mapeo de estados (por defecto: No iniciado → `pendiente`, En curso → `en desarrollo`, Terminado, en etapa de pruebas → `validación`, Terminado → `entregado`, Suspendido → `suspendido`). Los nombres deben existir en los estados de la lista de ClickUp; si no existen, la tarea se crea con el estado inicial de la lista.
+5. Revisa el mapeo de estados (ver [Mapeo de estados](#mapeo-de-estados); por defecto: No iniciado → `pendiente`, En curso → `en desarrollo`, Terminado, en etapa de pruebas → `validación`, Terminado → `entregado`, Suspendido → `suspendido`). Al enviar, el nombre debe existir en los estados de la lista de ClickUp; si no existe, la tarea se crea con el estado inicial de la lista.
 6. Habilita la integración y pulsa **Registrar webhook**. Si tu plan de ClickUp no lo permite, el sistema sigue funcionando: ClickUp → app se sincroniza por la revisión periódica.
 7. Para enviar a ClickUp los ítems que ya existían, usa la acción `encolar_sin_vincular`; para traer las tareas que ya están en una lista, `importar_existentes`.
+
+### Mapeo de estados
+
+`clickup_config.mapeo_estados` (y, opcionalmente, `clickup_tablero.mapeo_estados`) es un objeto `{ estadoDeLaApp: nombres }` donde `nombres` es un texto **o una lista de textos**:
+
+```json
+{
+  "No iniciado": ["Pendiente"],
+  "En curso": ["En desarrollo"],
+  "Terminado, en etapa de pruebas": ["Validación", "Listo para entregar"],
+  "Terminado": ["Entregado"]
+}
+```
+
+- **Al enviar a ClickUp** (app → ClickUp) se usa el **primer** nombre no vacío de la lista; escríbelo tal como se llama el estado en la lista de ClickUp. Un estado de la app sin mapeo (p. ej. «Suspendido») no envía estado, y si ClickUp rechaza el nombre la tarea se guarda igual sin él.
+- **Al leer de ClickUp** (ClickUp → app) se aceptan **todos** los nombres de la lista. La comparación solo mira letras y dígitos: ignora emojis, símbolos, tildes, mayúsculas y espacios, así que `☑ ENTREGADO`, `Entregado` y `entregado` son el mismo estado. Si un nombre aparece en varios estados, gana el primero en el orden del flujo (No iniciado, En curso, Terminado en etapa de pruebas, Terminado, Suspendido).
+- **Respaldo por tipo:** si ningún nombre coincide y el estado de ClickUp es de tipo `closed` o `done`, el ítem queda `Terminado`. Si no, queda `No iniciado` al crearlo y conserva su estado al actualizarlo.
+- El texto suelto de antes (`"En curso": "en desarrollo"`) sigue siendo válido. La base rechaza valores que no sean texto o lista de textos (`clickup_config_mapeo_estados_ck`, `clickup_tablero_mapeo_estados_ck`).
+- El mapeo por tablero reemplaza, estado por estado, al global.
+
+**Aplicar un mapeo nuevo a los ítems ya importados.** La reconciliación normal ignora las tareas que no han cambiado desde la última sincronización (no pisa ediciones de la app), así que cambiar el mapeo no actualiza lo que ya entró. Para hacerlo una vez, ejecuta la acción `reconciliar` con `forzar: true`: omite solo los chequeos de «gana el cambio más reciente» y aplica los datos de ClickUp sobre el ítem. Sigue respetando los ítems eliminados en la app, los que tienen un envío pendiente y el archivado, y no encola un envío de vuelta. **Sobrescribe los cambios hechos a mano en la app desde la importación** en los campos que ClickUp aporta (nombre, estado, fechas, responsable, alcance, fase, prioridad, bloqueo).
 
 ### Tableros (Desarrollo, Analítica…)
 
@@ -190,12 +212,12 @@ La documentación se consultó solo mediante búsquedas; ningún endpoint se pro
 | Acción | Respuesta |
 |---|---|
 | `estado` | `{ habilitado, token_configurado, conectado, equipo, webhook_registrado, pendientes, con_error, ultimo_sync, mapeo_estados, tableros: [{ id, nombre, mapeo_estados \| null, destinos }], sin_destino }` |
-| `guardar_config` `{ token?, habilitado?, equipo_id?, equipo_nombre?, mapeo_estados? }` | igual que `estado` |
+| `guardar_config` `{ token?, habilitado?, equipo_id?, equipo_nombre?, mapeo_estados? }` | igual que `estado` (`mapeo_estados`: `{ estadoApp: string \| string[] }`; las listas se limpian de textos vacíos) |
 | `probar` | `{ ok, usuario, equipos: [{ id, nombre }] }` o `{ ok: false, detalle, explicacion? }` |
 | `jerarquia` `{ equipo_id }` | `{ espacios: [{ id, nombre, carpetas: [{ id, nombre, listas }], listas }] }`, con `listas: [{ id, nombre, estados }]` |
 | `registrar_webhook` / `quitar_webhook` | `{ webhook_id }` / igual que `estado` |
 | `sincronizar` | `{ procesadas, errores }` (procesa `create`, `update`, `archive` y `mover`) |
-| `reconciliar` `{ tablero_id? }` | `{ creadas, actualizadas, archivadas }` (con `tablero_id` solo recorre las listas de ese tablero) |
+| `reconciliar` `{ tablero_id?, forzar? }` | `{ creadas, actualizadas, archivadas }` (con `tablero_id` solo recorre las listas de ese tablero; con `forzar: true` aplica el estado de ClickUp también a ítems con la sincronización al día, ver [Mapeo de estados](#mapeo-de-estados)) |
 | `importar_existentes` `{ lista_id, cliente_id?, tablero_id? }` | `{ importadas }` (el cliente se infiere del destino de la lista; `tablero_id` elige el destino cuando la lista tiene varios) |
 | `encolar_sin_vincular` | `{ encolados }` |
 

@@ -21,6 +21,11 @@ const ficha = (page, nombre) => page.locator('article', { hasText: nombre })
 const bloqueDestino = (page, titulo) => page.getByText(titulo, { exact: true }).locator('xpath=ancestor::div[contains(@class,"space-y-3")][1]')
 const campoSelect = (contenedor, etiqueta) =>
   contenedor.locator('label', { has: contenedor.page().locator('span.field-label', { hasText: new RegExp(`^${etiqueta}$`) }) }).locator('select')
+const marcarEstado = async (contenedor, estadoApp, estadoClickUp) => {
+  await contenedor.getByRole('button', { name: estadoApp, exact: true }).click()
+  await contenedor.getByRole('checkbox', { name: estadoClickUp, exact: true }).check()
+  await contenedor.page().keyboard.press('Escape')
+}
 const irAMenu = (page, nombre) => page.locator('aside').getByRole('link', { name: nombre, exact: true }).click()
 
 function conectar(backend, { habilitado = true } = {}) {
@@ -239,10 +244,10 @@ test.describe('ClickUp · estados por tablero', () => {
     await expect(estados.getByText(/Este tablero usa el mapeo general/)).toBeVisible()
     await expect(estados.getByRole('button', { name: 'Usar el mapeo general' })).toHaveCount(0)
 
-    await campoSelect(estados, 'Terminado').selectOption({ label: 'CERRADO' })
+    await marcarEstado(estados, 'Terminado', 'CERRADO')
     await estados.getByRole('button', { name: 'Guardar mapeo' }).click()
     await expect(toast(page, 'Mapeo del tablero Desarrollo guardado.')).toBeVisible()
-    expect(backend.estado.clickup_tablero[0].mapeo_estados).toEqual({ ...MAPEO, Terminado: 'CERRADO' })
+    expect(backend.estado.clickup_tablero[0].mapeo_estados).toEqual({ ...MAPEO, Terminado: ['ENTREGADO', 'CERRADO'] })
     expect(backend.estado.clickup.mapeo_estados).toEqual(MAPEO)
     await expect(page.getByText('Mapeo de estados propio')).toBeVisible()
 
@@ -256,7 +261,7 @@ test.describe('ClickUp · estados por tablero', () => {
     const estados = tarjeta(page, 'Estados').last()
     await estados.getByRole('button', { name: 'Analítica', exact: true }).click()
     await estados.getByRole('button', { name: 'General', exact: true }).click()
-    await expect(campoSelect(estados, 'Terminado')).toHaveValue('ENTREGADO')
+    await expect(estados.getByRole('button', { name: 'Terminado', exact: true })).toContainText('ENTREGADO')
     await estados.getByRole('button', { name: 'Guardar mapeo' }).click()
     await expect(toast(page, 'Mapeo de estados guardado.')).toBeVisible()
     expect(backend.estado.clickup.mapeo_estados).toEqual(MAPEO)

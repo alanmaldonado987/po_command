@@ -38,6 +38,33 @@ Deno.test("reconciliar recorre cada lista destino una sola vez y cuenta los resu
   assertEquals(entorno.base.filas("clickup_config")[0].ultimo_sync !== null, true)
 })
 
+Deno.test("reconciliar sin forzar no envía p_forzar al aplicar los cambios", async () => {
+  const entorno = entornoClickUp()
+  entorno.cliente.tareasPorLista = { "L-1": [tareaClickUp({ id: "A" })] }
+  resultadosPorTarea(entorno, { A: "sin_cambios" })
+  await reconciliar()
+  assertEquals(aplicaciones(entorno).some((a) => "p_forzar" in a), false)
+})
+
+Deno.test("reconciliar forzado envía p_forzar en las tareas activas y archivadas", async () => {
+  const entorno = entornoClickUp({ clickup_destino: [destino({ id: 1, cliente_id: null, lista_id: "L-1" })] })
+  entorno.cliente.tareasPorLista = { "L-1": [tareaClickUp({ id: "A" })] }
+  entorno.cliente.archivadasPorLista = { "L-1": [tareaClickUp({ id: "Z" })] }
+  resultadosPorTarea(entorno, { A: "actualizado", Z: "archivado" })
+  assertEquals(await reconciliar(null, true), { creadas: 0, actualizadas: 1, archivadas: 1 })
+  const enviadas = aplicaciones(entorno)
+  assertEquals(enviadas.length, 2)
+  assertEquals(enviadas.every((a) => a.p_forzar === true && a.p_evento === "reconciliar"), true)
+})
+
+Deno.test("reconciliar forzado no fuerza la verificación de tareas vinculadas ausentes", async () => {
+  const entorno = entornoClickUp({ item: [itemVinculable({ clickup_task_id: "T-404" })] })
+  entorno.cliente.tareasPorLista = { "L-1": [] }
+  resultadosPorTarea(entorno, { "T-404": "archivado" })
+  await reconciliar(null, true)
+  assertEquals(aplicaciones(entorno)[0], { p_tarea: { id: "T-404" }, p_evento: "taskDeleted", p_cliente_id: null })
+})
+
 Deno.test("reconciliar envía las tareas archivadas marcadas como archivadas para eliminar sus ítems", async () => {
   const entorno = entornoClickUp()
   entorno.cliente.archivadasPorLista = { "L-1": [tareaClickUp({ id: "Z", archived: false })] }

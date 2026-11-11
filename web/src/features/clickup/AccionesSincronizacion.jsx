@@ -7,6 +7,7 @@ import {
   useSincronizarClickUp,
 } from '../../hooks/useClickUp'
 import { Button } from '../../components/ui'
+import { ReconciliarForzado } from './ReconciliarForzado'
 
 export function AccionesSincronizacion({ estado }) {
   const toast = useToast()
@@ -58,6 +59,7 @@ export function AccionesSincronizacion({ estado }) {
       >
         Reconciliar
       </Button>
+      <ReconciliarForzado operativo={operativo} />
     </div>
   )
 }

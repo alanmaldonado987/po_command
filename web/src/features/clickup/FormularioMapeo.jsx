@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { conAviso } from '../../lib/conAviso'
 import { ESTADOS } from '../../lib/constantes'
 import { useToast } from '../../context/ToastContext'
-import { Button, SelectField } from '../../components/ui'
+import { Button } from '../../components/ui'
+import { aLista, aValorMapeo } from './mapeoEstados'
+import { SelectorEstados } from './SelectorEstados'
 
 export function FormularioMapeo({ inicial, disponibles, ocupado, alGuardar, alUsarGeneral }) {
   const toast = useToast()
   const [mapeo, setMapeo] = useState(inicial)
-  const completo = ESTADOS.every((estado) => mapeo[estado])
-  const opcionesDe = (estado) => [...new Set([...disponibles, mapeo[estado]].filter(Boolean))]
+  const completo = ESTADOS.every((estado) => aLista(mapeo[estado]).length > 0)
+  const cambiar = (estado) => (lista) => setMapeo((actual) => ({ ...actual, [estado]: aValorMapeo(lista) }))
 
   const enviar = conAviso(toast, async (evento) => {
     evento.preventDefault()
@@ -17,15 +19,18 @@ export function FormularioMapeo({ inicial, disponibles, ocupado, alGuardar, alUs
 
   return (
     <form onSubmit={enviar} className="space-y-3">
+      <p className="text-xs text-ink-muted">
+        Cada estado de la app admite uno o varios estados de ClickUp. El primero es el que se envía a ClickUp; los demás
+        solo se aceptan cuando ClickUp avisa de un cambio.
+      </p>
       <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
         {ESTADOS.map((estado) => (
-          <SelectField
+          <SelectorEstados
             key={estado}
-            label={estado}
-            placeholder="Elige el estado de ClickUp"
-            opciones={opcionesDe(estado)}
-            value={mapeo[estado] ?? null}
-            onChange={(valor) => setMapeo((actual) => ({ ...actual, [estado]: valor ?? '' }))}
+            estado={estado}
+            disponibles={disponibles}
+            lista={aLista(mapeo[estado])}
+            alCambiar={cambiar(estado)}
           />
         ))}
       </div>

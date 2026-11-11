@@ -23,6 +23,9 @@ describe('api/clickup · Edge Function', () => {
     ['quitarWebhookClickUp', [], { accion: 'quitar_webhook' }],
     ['sincronizarClickUp', [], { accion: 'sincronizar' }],
     ['reconciliarClickUp', [], { accion: 'reconciliar' }],
+    ['reconciliarClickUp', [{ forzar: true }], { accion: 'reconciliar', forzar: true }],
+    ['reconciliarClickUp', [{ tableroId: 2 }], { accion: 'reconciliar', tablero_id: 2 }],
+    ['reconciliarClickUp', [{ tableroId: 2, forzar: true }], { accion: 'reconciliar', tablero_id: 2, forzar: true }],
     [
       'importarExistentesClickUp',
       [{ listaId: 'l1', clienteId: 3, tableroId: 2 }],

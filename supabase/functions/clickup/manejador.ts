@@ -8,7 +8,7 @@ import {
   obtenerConfigClickUp,
 } from "../_shared/clickup_config.ts"
 import { importarExistentes, reconciliar } from "../_shared/clickup_reconciliar.ts"
-import { ESTADOS_APP, type ConfigClickUp, type ListaClickUp } from "../_shared/clickup_tipos.ts"
+import { ESTADOS_APP, type ConfigClickUp, type ListaClickUp, type MapeoEstados } from "../_shared/clickup_tipos.ts"
 import { ErrorSolicitud, exigir, manejar } from "../_shared/respuesta.ts"
 import { admin, consultar } from "../_shared/supabase.ts"
 
@@ -74,14 +74,22 @@ async function estado() {
   }
 }
 
-function validarMapeo(mapeo: unknown): Record<string, string> {
+function validarNombresDeEstado(estadoApp: string, valor: unknown): string | string[] {
+  if (typeof valor === "string") return valor
+  exigir(
+    Array.isArray(valor) && valor.every((nombre) => typeof nombre === "string"),
+    `Los estados de ClickUp para «${estadoApp}» deben ser texto o una lista de textos`,
+  )
+  return (valor as string[]).map((nombre) => nombre.trim()).filter(Boolean)
+}
+
+function validarMapeo(mapeo: unknown): MapeoEstados {
   exigir(typeof mapeo === "object" && mapeo !== null && !Array.isArray(mapeo), "mapeo_estados debe ser un objeto")
   const entradas = Object.entries(mapeo as Record<string, unknown>)
-  for (const [estadoApp, estadoClickUp] of entradas) {
+  for (const [estadoApp] of entradas) {
     exigir(ESTADOS_APP.includes(estadoApp as (typeof ESTADOS_APP)[number]), `Estado desconocido en el mapeo: ${estadoApp}`)
-    exigir(typeof estadoClickUp === "string", `El estado de ClickUp para «${estadoApp}» debe ser texto`)
   }
-  return Object.fromEntries(entradas) as Record<string, string>
+  return Object.fromEntries(entradas.map(([estadoApp, valor]) => [estadoApp, validarNombresDeEstado(estadoApp, valor)]))
 }
 
 async function nombreDelEquipo(config: ConfigClickUp, equipoId: string): Promise<string> {
@@ -200,9 +208,10 @@ async function importar({ lista_id, cliente_id, tablero_id }: Cuerpo) {
   }
 }
 
-function reconciliarTablero({ tablero_id }: Cuerpo) {
+function reconciliarTablero({ tablero_id, forzar }: Cuerpo) {
   exigir(esIdOpcional(tablero_id), "tablero_id inválido")
-  return reconciliar((tablero_id as number | null | undefined) ?? null)
+  exigir(forzar === undefined || typeof forzar === "boolean", "forzar debe ser verdadero o falso")
+  return reconciliar((tablero_id as number | null | undefined) ?? null, forzar === true)
 }
 
 const ACCIONES: Record<string, (cuerpo: Cuerpo) => Promise<unknown>> = {

@@ -77,6 +77,13 @@ Deno.test("mapeosDeMovimiento: si el estado actual existe en la lista destino no
   assertEquals(mapeosDeMovimiento(actual, lista([{ id: "a1", status: "en desarrollo" }]), "analizando"), [])
 })
 
+Deno.test("mapeosDeMovimiento: compara los estados sin emojis, tildes ni mayúsculas", () => {
+  const actual = tareaClickUp({ status: { id: "s1", status: "En Desarrollo", type: "custom" } })
+  assertEquals(mapeosDeMovimiento(actual, lista([{ id: "a1", status: "🧑‍💻 EN DESARROLLO" }]), "analizando"), [])
+  const destinoLista = lista([{ id: "a1", status: "pendiente", type: "open" }, { id: "a2", status: "☑ ENTREGADO", type: "closed" }])
+  assertEquals(mapeosDeMovimiento(actual, destinoLista, "Entregado"), [{ source_status: "s1", destination_status: "a2" }])
+})
+
 Deno.test("mapeosDeMovimiento: elige el estado objetivo del tablero cuando el actual no existe", () => {
   const actual = tareaClickUp({ status: { id: "s1", status: "en desarrollo" } })
   const destinoLista = lista([{ id: "a1", status: "pendiente", type: "open" }, { id: "a2", status: "analizando", type: "custom" }])

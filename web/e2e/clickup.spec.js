@@ -12,6 +12,11 @@ const EQUIPO = { id: 't1', nombre: 'Ises' }
 const fila = (page, codigo) => page.getByRole('row').filter({ hasText: codigo })
 const campoSelect = (contenedor, etiqueta) =>
   contenedor.locator('label', { has: contenedor.page().locator('span.field-label', { hasText: new RegExp(`^${etiqueta}$`) }) }).locator('select')
+const marcarEstado = async (contenedor, estadoApp, estadoClickUp) => {
+  await contenedor.getByRole('button', { name: estadoApp, exact: true }).click()
+  await contenedor.getByRole('checkbox', { name: estadoClickUp, exact: true }).check()
+  await contenedor.page().keyboard.press('Escape')
+}
 const irAMenu = (page, nombre) => page.locator('aside').getByRole('link', { name: nombre, exact: true }).click()
 
 function conectar(backend, { habilitado = false, conDestino = false } = {}) {
@@ -138,7 +143,7 @@ test.describe('ClickUp · destinos y estados', () => {
     const guardar = estados.getByRole('button', { name: 'Guardar mapeo' })
     await expect(guardar).toBeDisabled()
     for (const [estadoApp, estadoClickUp] of Object.entries(MAPEO)) {
-      await campoSelect(estados, estadoApp).selectOption({ label: estadoClickUp })
+      await marcarEstado(estados, estadoApp, estadoClickUp)
     }
     await expect(guardar).toBeEnabled()
     await guardar.click()
@@ -165,7 +170,7 @@ test.describe('ClickUp · webhook y sincronización', () => {
     await abrirClickUp(page)
     await page.getByRole('button', { name: 'Sincronizar ahora' }).click()
     await expect(toast(page, '0 cambio(s) procesado(s), 0 con error.')).toBeVisible()
-    await page.getByRole('button', { name: 'Reconciliar' }).click()
+    await page.getByRole('button', { name: 'Reconciliar', exact: true }).click()
     await expect(toast(page, 'Reconciliación: 0 creada(s), 0 actualizada(s), 0 archivada(s).')).toBeVisible()
   })
 
@@ -173,7 +178,7 @@ test.describe('ClickUp · webhook y sincronización', () => {
     conectar(backend)
     await abrirClickUp(page)
     await expect(page.getByRole('button', { name: 'Sincronizar ahora' })).toBeDisabled()
-    await expect(page.getByRole('button', { name: 'Reconciliar' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Reconciliar', exact: true })).toBeDisabled()
   })
 
   test('un fallo de ClickUp al sincronizar se muestra al usuario', async ({ paginaAutenticada: page, backend }) => {

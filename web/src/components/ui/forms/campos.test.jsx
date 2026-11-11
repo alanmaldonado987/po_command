@@ -100,6 +100,17 @@ describe('MultiSelectField', () => {
     expect(alCambiar).toHaveBeenCalledWith([7])
   })
 
+  it('por defecto lista las etiquetas en el orden de las opciones y con enOrdenDeSeleccion en el orden elegido', () => {
+    const { rerender } = render(
+      <MultiSelectField label="Cliente" opciones={opciones} value={['ACUACAR', 'AIR-E']} onChange={() => {}} />,
+    )
+    expect(screen.getByText('AIR-E, ACUACAR')).toBeInTheDocument()
+    rerender(
+      <MultiSelectField label="Cliente" opciones={opciones} value={['ACUACAR', 'AIR-E']} onChange={() => {}} enOrdenDeSeleccion />,
+    )
+    expect(screen.getByText('ACUACAR, AIR-E')).toBeInTheDocument()
+  })
+
   it('avisa cuando no hay opciones', async () => {
     render(<MultiSelectField opciones={[]} value={[]} onChange={() => {}} />)
     await userEvent.click(screen.getByRole('button'))

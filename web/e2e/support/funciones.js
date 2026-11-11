@@ -1,4 +1,4 @@
-import { destinoDeItem, itemsSinDestino } from './clickupDestinos.js'
+import { destinoDeItem, itemsSinDestino, tableroDeItem } from './clickupDestinos.js'
 import { encolarAlerta, ErrorApi, registrarLog } from './almacen.js'
 import { ahoraIso } from './tiempo.js'
 import { vistaBloqueanteAbierto, vistaItem } from './vistas.js'
@@ -167,7 +167,7 @@ export const IA = {
 }
 
 const EQUIPO_CLICKUP = { id: 't1', nombre: 'Ises' }
-const ESTADOS_LISTA_CLICKUP = ['PENDIENTE', 'EN DESARROLLO', 'VALIDACIÓN', 'ENTREGADO', 'CERRADO']
+const ESTADOS_LISTA_CLICKUP = ['PENDIENTE', 'EN DESARROLLO', 'VALIDACIÓN', 'LISTO PARA ENTREGAR', 'ENTREGADO', 'CERRADO']
 const JERARQUIA_CLICKUP = {
   espacios: [
     {
@@ -231,6 +231,38 @@ function sincronizarCola(estado) {
   return { procesadas: pendientes.length - errores, errores }
 }
 
+const nombresDeEstado = (valor) => (Array.isArray(valor) ? valor : [valor]).filter(Boolean)
+const normalizarEstado = (texto) => texto.trim().toLowerCase()
+
+const estadoDeApp = (mapeo, estadoRemoto) =>
+  Object.entries(mapeo ?? {}).find(([, valor]) =>
+    nombresDeEstado(valor).some((nombre) => normalizarEstado(nombre) === normalizarEstado(estadoRemoto)),
+  )?.[0] ?? null
+
+const mapeoDelItem = (estado, item) => {
+  const tablero = estado.clickup_tablero.find((candidato) => candidato.id === tableroDeItem(estado, item))
+  return tablero?.mapeo_estados ?? estado.clickup.mapeo_estados
+}
+
+function reconciliar(estado, { forzar = false } = {}) {
+  const resultado = { creadas: 0, actualizadas: 0, archivadas: 0 }
+  const conCambioPendiente = new Set(estado.clickup_cola.filter((fila) => fila.estado === 'Pendiente').map((fila) => fila.item_id))
+  if (forzar) {
+    estado.item
+      .filter((item) => item.clickup_task_id && !item.eliminado_en && !conCambioPendiente.has(item.id))
+      .forEach((item) => {
+        const remoto = estado.clickup.estados_remotos[item.clickup_task_id]
+        const nuevo = remoto ? estadoDeApp(mapeoDelItem(estado, item), remoto) : null
+        if (!nuevo || nuevo === item.estado) return
+        item.estado = nuevo
+        item.actualizado_en = ahoraIso()
+        resultado.actualizadas += 1
+      })
+  }
+  estado.clickup.ultimo_sync = ahoraIso()
+  return resultado
+}
+
 function importarExistentes(estado, { cliente_id: clienteId }) {
   const nuevos = ['Tarea existente A', 'Tarea existente B']
   nuevos.forEach((titulo, indice) => {
@@ -284,6 +316,6 @@ export const CLICKUP = {
     return { ok: true }
   },
   sincronizar: sincronizarCola,
-  reconciliar: () => ({ creadas: 0, actualizadas: 0, archivadas: 0 }),
+  reconciliar,
   importar_existentes: importarExistentes,
 }

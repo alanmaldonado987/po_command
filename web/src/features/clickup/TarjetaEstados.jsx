@@ -16,7 +16,7 @@ const GENERAL = 'general'
 
 export function TarjetaEstados({ estado }) {
   const toast = useToast()
-  const { data: jerarquia } = useJerarquiaClickUp(estado.equipo?.id)
+  const { data: jerarquia, isLoading: leyendoEstados } = useJerarquiaClickUp(estado.equipo?.id)
   const { data: destinos = [] } = useDestinosClickUp()
   const { data: tableros = [] } = useTablerosClickUp()
   const guardarGeneral = useGuardarConfigClickUp()
@@ -46,7 +46,7 @@ export function TarjetaEstados({ estado }) {
     <Card
       title="Estados"
       icon="swap_horiz"
-      subtitle="Qué estado de ClickUp corresponde a cada estado de la app, en los dos sentidos. Cada tablero puede tener su propio mapeo."
+      subtitle="Qué estados de ClickUp corresponden a cada estado de la app, en los dos sentidos: uno o varios por estado. Cada tablero puede tener su propio mapeo."
     >
       {!estado.equipo && <Alert tono="info">Elige un equipo en la tarjeta de conexión para leer los estados de tus listas.</Alert>}
       {estado.equipo && (
@@ -64,14 +64,17 @@ export function TarjetaEstados({ estado }) {
               Este tablero usa el mapeo general. Si guardas cambios aquí, el tablero tendrá su propio mapeo.
             </Alert>
           )}
-          <FormularioMapeo
-            key={huella}
-            inicial={inicial}
-            disponibles={disponibles}
-            ocupado={guardarGeneral.isPending || actualizarTablero.isPending}
-            alGuardar={guardar}
-            alUsarGeneral={tablero && propio ? usarGeneral : null}
-          />
+          {leyendoEstados && <p className="text-sm text-ink-muted">Leyendo los estados de tus listas de ClickUp…</p>}
+          {!leyendoEstados && (
+            <FormularioMapeo
+              key={huella}
+              inicial={inicial}
+              disponibles={disponibles}
+              ocupado={guardarGeneral.isPending || actualizarTablero.isPending}
+              alGuardar={guardar}
+              alUsarGeneral={tablero && propio ? usarGeneral : null}
+            />
+          )}
         </>
       )}
     </Card>

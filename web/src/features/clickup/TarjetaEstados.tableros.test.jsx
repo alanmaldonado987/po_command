@@ -1,8 +1,8 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../../test/apiFalsa'
-import { argumentoDe } from '../../test/ayudas'
+import { argumentoDe, marcarOpcion } from '../../test/ayudas'
 import { crearDestino, crearTablero } from '../../test/fabricas'
 import { renderizar } from '../../test/renderizar'
 import { TarjetaEstados } from './TarjetaEstados'
@@ -44,14 +44,14 @@ describe('TarjetaEstados · tableros', () => {
     expect(await screen.findByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Desarrollo' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: 'Analítica' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Terminado')).toHaveValue('ENTREGADO')
+    expect(await screen.findByRole('button', { name: 'Terminado' })).toHaveTextContent('ENTREGADO')
   })
 
   it('un tablero con mapeo propio muestra sus valores y permite volver al general', async () => {
     renderizar(<TarjetaEstados estado={estado()} />)
     await usuario.click(await screen.findByRole('button', { name: 'Analítica' }))
-    expect(screen.getByLabelText('Terminado')).toHaveValue('LISTO')
-    expect(screen.getByLabelText('En curso')).toHaveValue('DOING')
+    expect(await screen.findByRole('button', { name: 'Terminado' })).toHaveTextContent('LISTO')
+    expect(screen.getByRole('button', { name: 'En curso' })).toHaveTextContent('DOING')
     expect(screen.queryByText(/Este tablero usa el mapeo general/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Usar el mapeo general' })).toBeInTheDocument()
   })
@@ -60,19 +60,18 @@ describe('TarjetaEstados · tableros', () => {
     renderizar(<TarjetaEstados estado={estado()} />)
     await usuario.click(await screen.findByRole('button', { name: 'Desarrollo' }))
     expect(screen.getByText(/Este tablero usa el mapeo general/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Terminado')).toHaveValue('ENTREGADO')
+    expect(await screen.findByRole('button', { name: 'Terminado' })).toHaveTextContent('ENTREGADO')
     expect(screen.queryByRole('button', { name: 'Usar el mapeo general' })).not.toBeInTheDocument()
   })
 
   it('guardar en un tablero crea su mapeo propio sin tocar el general', async () => {
     renderizar(<TarjetaEstados estado={estado()} />)
     await usuario.click(await screen.findByRole('button', { name: 'Desarrollo' }))
-    const selector = screen.getByLabelText('Terminado')
-    await waitFor(() => expect(within(selector).getByRole('option', { name: 'CERRADO' })).toBeInTheDocument())
-    await usuario.selectOptions(selector, 'CERRADO')
+    await screen.findByRole('button', { name: 'Terminado' })
+    await marcarOpcion(usuario, 'Terminado', 'CERRADO')
     await usuario.click(screen.getByRole('button', { name: 'Guardar mapeo' }))
     await waitFor(() => expect(api.clickup.actualizarTablero).toHaveBeenCalled())
-    expect(argumentoDe(api.clickup.actualizarTablero)).toEqual({ id: 1, mapeoEstados: { ...GENERAL, Terminado: 'CERRADO' } })
+    expect(argumentoDe(api.clickup.actualizarTablero)).toEqual({ id: 1, mapeoEstados: { ...GENERAL, Terminado: ['ENTREGADO', 'CERRADO'] } })
     expect(api.clickup.guardarConfigClickUp).not.toHaveBeenCalled()
     expect(await screen.findByText('Mapeo del tablero Desarrollo guardado.')).toBeInTheDocument()
   })
@@ -104,10 +103,10 @@ describe('TarjetaEstados · tableros', () => {
     ])
     renderizar(<TarjetaEstados estado={estado()} />)
     await usuario.click(await screen.findByRole('button', { name: 'Analítica' }))
-    const selector = screen.getByLabelText('No iniciado')
-    await waitFor(() => expect(within(selector).getByRole('option', { name: 'ABIERTA' })).toBeInTheDocument())
-    expect(within(selector).getByRole('option', { name: 'CERRADA' })).toBeInTheDocument()
-    expect(within(selector).queryByRole('option', { name: 'EN DESARROLLO' })).not.toBeInTheDocument()
+    await usuario.click(await screen.findByRole('button', { name: 'No iniciado' }))
+    expect(screen.getByRole('checkbox', { name: 'ABIERTA' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'CERRADA' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'EN DESARROLLO' })).not.toBeInTheDocument()
   })
 
   it('si guardar el mapeo de un tablero falla muestra el error', async () => {
