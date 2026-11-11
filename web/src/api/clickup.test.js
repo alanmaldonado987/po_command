@@ -99,10 +99,19 @@ describe('api/clickup · tablas', () => {
   it('listarColaClickUp trae lo último primero con un límite', async () => {
     const falso = constructorFalso()
     cliente.from.mockReturnValue(falso.constructor)
-    await api.listarColaClickUp(10)
+    await api.listarColaClickUp({ limite: 10 })
     expect(cliente.from).toHaveBeenCalledWith('clickup_cola')
     expect(falso.llamada('order')).toEqual(['id', { ascending: false }])
     expect(falso.llamada('limit')).toEqual([10])
+    expect(falso.llamada('in')).toBeUndefined()
+  })
+
+  it('listarColaClickUp filtra por los estados pedidos', async () => {
+    const falso = constructorFalso()
+    cliente.from.mockReturnValue(falso.constructor)
+    await api.listarColaClickUp({ estados: ['Pendiente', 'Fallida'], limite: 100 })
+    expect(falso.llamada('in')).toEqual(['estado', ['Pendiente', 'Fallida']])
+    expect(falso.llamada('limit')).toEqual([100])
   })
 
   it('listarColaClickUp usa 30 filas por defecto', async () => {

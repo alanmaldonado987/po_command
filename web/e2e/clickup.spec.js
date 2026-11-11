@@ -212,7 +212,7 @@ test.describe('ClickUp · ítems del backlog', () => {
 
     await irAMenu(page, 'Configuración & Datos')
     await page.getByRole('tab', { name: 'ClickUp' }).click()
-    const actividad = tarjeta(page, 'Actividad').last()
+    const actividad = tarjeta(page, 'Cola de envíos').last()
     await expect(actividad).toContainText('BL-026 · Crear')
     await expect(actividad).toContainText('Enviada')
     await expect(kpi(page, 'Pendientes')).toContainText('0')

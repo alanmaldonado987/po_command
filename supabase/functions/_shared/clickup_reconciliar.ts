@@ -1,4 +1,5 @@
 import { ErrorClickUp } from "./clickup_api.ts"
+import { alertarCambioDeClickUp, crearLimiteAlertas, despacharSinFallar } from "./clickup_alertas.ts"
 import { aplicarCambio } from "./clickup_cambios.ts"
 import { clienteClickUp, guardarConfigClickUp, listarDestinos, obtenerConfigClickUp } from "./clickup_config.ts"
 import type { ResultadoCambio } from "./clickup_tipos.ts"
@@ -47,15 +48,19 @@ export async function reconciliar(tableroId: number | null = null, forzar = fals
   const destinos = (await listarDestinos()).filter((destino) => tableroId === null || destino.tablero_id === tableroId)
   const listas = [...new Set(destinos.map((destino) => destino.lista_id))]
   const vistas = new Set<string>()
+  const limiteAlertas = forzar ? undefined : crearLimiteAlertas()
   for (const lista of listas) {
     for (const tarea of await cliente.tareasDeLista(lista)) {
       vistas.add(tarea.id)
-      sumar(total, await aplicarCambio(tarea, "reconciliar", null, forzar))
+      const cambio = await aplicarCambio(tarea, "reconciliar", null, forzar)
+      sumar(total, cambio)
+      if (limiteAlertas) await alertarCambioDeClickUp(cambio, tarea, limiteAlertas)
     }
     for (const tarea of await cliente.tareasDeLista(lista, true)) {
       sumar(total, await aplicarCambio({ ...tarea, archived: true }, "reconciliar", null, forzar))
     }
   }
+  if (limiteAlertas && limiteAlertas.avisados > 0) await despacharSinFallar()
   if (tableroId === null) await verificarVinculadasAusentes(cliente, vistas, total)
   await guardarConfigClickUp({ ultimo_sync: new Date().toISOString() })
   return total

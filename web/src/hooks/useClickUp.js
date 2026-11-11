@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import * as api from '../api/clickup'
+import { FILTROS_COLA, LIMITE_ABIERTOS_COLA, ordenarAbiertos } from '../lib/colaClickUp'
 import { useMutacion } from './useMutacion'
 
 const MINUTO_MS = 60_000
@@ -18,8 +19,21 @@ export const useDestinosClickUp = () => useQuery({ queryKey: ['clickup', 'destin
 
 export const useTablerosClickUp = () => useQuery({ queryKey: ['clickup', 'tableros'], queryFn: api.listarTableros })
 
-export const useColaClickUp = (limite) =>
-  useQuery({ queryKey: ['clickup', 'cola', limite], queryFn: () => api.listarColaClickUp(limite) })
+async function cargarCola(filtro, limite) {
+  const { estados } = FILTROS_COLA[filtro]
+  if (filtro !== 'todos') {
+    const filas = await api.listarColaClickUp({ estados, limite })
+    return { filas, hayMas: filas.length >= limite }
+  }
+  const [abiertos, enviados] = await Promise.all([
+    api.listarColaClickUp({ estados: ['Pendiente', 'Fallida'], limite: LIMITE_ABIERTOS_COLA }),
+    api.listarColaClickUp({ estados: ['Enviada'], limite }),
+  ])
+  return { filas: [...ordenarAbiertos(abiertos), ...enviados], hayMas: enviados.length >= limite }
+}
+
+export const useColaClickUp = (filtro, limite) =>
+  useQuery({ queryKey: ['clickup', 'cola', filtro, limite], queryFn: () => cargarCola(filtro, limite) })
 
 export const usePendientesClickUpDeItem = (itemId) =>
   useQuery({

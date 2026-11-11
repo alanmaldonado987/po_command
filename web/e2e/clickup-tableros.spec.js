@@ -334,7 +334,7 @@ test.describe('ClickUp · ítems con tablero', () => {
     await abrirClickUp(page)
     await page.getByRole('button', { name: 'Sincronizar ahora' }).click()
     await expect(toast(page, '0 cambio(s) procesado(s), 1 con error.')).toBeVisible()
-    const actividad = tarjeta(page, 'Actividad').last()
+    const actividad = tarjeta(page, 'Cola de envíos').last()
     await expect(actividad).toContainText('Fallida')
     await expect(actividad).toContainText('Sin destino configurado')
     await expect(kpi(page, 'Con error')).toContainText('1')
@@ -349,6 +349,6 @@ test.describe('ClickUp · ítems con tablero', () => {
       id: 1, item_id: 9, accion: 'mover', estado: 'Enviada', intentos: 1, error: null, creado_en: new Date().toISOString(), procesado_en: new Date().toISOString(),
     })
     await abrirClickUp(page)
-    await expect(tarjeta(page, 'Actividad').last()).toContainText('BL-009 · Mover')
+    await expect(tarjeta(page, 'Cola de envíos').last()).toContainText('BL-009 · Mover')
   })
 })

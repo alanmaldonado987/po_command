@@ -100,4 +100,5 @@ export interface ResultadoGuardado {
   antes: { bloqueado: boolean; motivo_bloqueo: string } | null
   cambios: CambioFecha[]
   sin_cambios: boolean
+  bloqueado?: boolean
 }

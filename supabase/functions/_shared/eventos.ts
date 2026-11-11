@@ -15,7 +15,15 @@ const ETIQUETAS_FECHA: Record<string, string> = {
 
 const capitalizar = (texto: string): string => texto.charAt(0).toUpperCase() + texto.slice(1)
 
-async function avisarBloqueo(item: Item): Promise<string | null> {
+export interface OpcionesAviso {
+  origen?: string
+  clave?: string
+}
+
+const filaOrigen = ({ origen }: OpcionesAviso): Fila[] => (origen ? [["Cambio hecho en", origen]] : [])
+const claveDe = (regla: string, { clave }: OpcionesAviso): string | undefined => (clave ? `${clave}:${regla}` : undefined)
+
+async function avisarBloqueo(item: Item, opciones: OpcionesAviso): Promise<string | null> {
   const regla = await reglaActiva("BLOQUEO_NUEVO")
   if (!regla) return null
   const destinatarios = await resolver(regla.destinatarios, regla.categoria, { item })
@@ -28,6 +36,7 @@ async function avisarBloqueo(item: Item): Promise<string | null> {
       ["Motivo", item.motivo_bloqueo || "-"],
       ["Responsable", item.responsable ?? "Sin asignar"],
       ["Fecha fin planificada", formatoFecha(item.fecha_compromiso)],
+      ...filaOrigen(opciones),
     ],
     cierre: "Si sigue abierto se escalará automáticamente a los stakeholders del cliente.",
     color: "#B91C1C",
@@ -39,20 +48,21 @@ async function avisarBloqueo(item: Item): Promise<string | null> {
     asunto: `[Bloqueante] ${item.codigo} ${item.cliente ?? ""} · ${item.titulo}`,
     cuerpo,
     destinatarios,
+    clave: claveDe("BLOQUEO_NUEVO", opciones),
   })
   return id
     ? `Alerta de bloqueante para ${destinatarios.length} destinatario(s).`
     : "Bloqueo registrado, pero no hay destinatarios con correo válido."
 }
 
-async function avisarDesbloqueo(item: Item, motivoAnterior: string): Promise<void> {
+async function avisarDesbloqueo(item: Item, motivoAnterior: string, opciones: OpcionesAviso): Promise<void> {
   const regla = await reglaActiva("BLOQUEO_RESUELTO")
   if (!regla) return
   const cuerpo = await plantilla({
     titulo: `${item.codigo} desbloqueado`,
     saludo: "Hola,",
     intro: `El bloqueo de ${item.codigo} quedó resuelto y el ítem continúa en estado ${item.estado}.`,
-    filas: [...ubicacion(item), ["Motivo que tenía", motivoAnterior || "-"]],
+    filas: [...ubicacion(item), ["Motivo que tenía", motivoAnterior || "-"], ...filaOrigen(opciones)],
     color: "#047857",
   })
   await encolar({
@@ -62,10 +72,11 @@ async function avisarDesbloqueo(item: Item, motivoAnterior: string): Promise<voi
     asunto: `[Resuelto] ${item.codigo} ${item.titulo}`,
     cuerpo,
     destinatarios: await resolver(regla.destinatarios, regla.categoria, { item }),
+    clave: claveDe("BLOQUEO_RESUELTO", opciones),
   })
 }
 
-async function avisarReprogramacion(item: Item, cambios: CambioFecha[]): Promise<string | null> {
+async function avisarReprogramacion(item: Item, cambios: CambioFecha[], opciones: OpcionesAviso): Promise<string | null> {
   const regla = await reglaActiva("REPROGRAMACION")
   if (!regla) return null
   const destinatarios = await resolver(regla.destinatarios, regla.categoria, { item })
@@ -77,7 +88,7 @@ async function avisarReprogramacion(item: Item, cambios: CambioFecha[]): Promise
     titulo: `${item.codigo} cambió de fechas`,
     saludo: "Hola,",
     intro: `Se reprogramó el ítem ${item.codigo} (${item.titulo}).`,
-    filas: [...ubicacion(item), ...filasCambios],
+    filas: [...ubicacion(item), ...filasCambios, ...filaOrigen(opciones)],
     color: "#B45309",
   })
   const id = await encolar({
@@ -87,21 +98,22 @@ async function avisarReprogramacion(item: Item, cambios: CambioFecha[]): Promise
     asunto: `[Reprogramación] ${item.codigo} ${item.titulo}`,
     cuerpo,
     destinatarios,
+    clave: claveDe("REPROGRAMACION", opciones),
   })
   return id ? `Reprogramación avisada a ${destinatarios.length} destinatario(s).` : null
 }
 
-export async function alGuardarItem({ id, antes, cambios }: ResultadoGuardado): Promise<string> {
+export async function alGuardarItem({ id, antes, cambios }: ResultadoGuardado, opciones: OpcionesAviso = {}): Promise<string> {
   const item = await obtenerItem(id)
   const mensajes: (string | null)[] = []
 
   if (item.bloqueado && !antes?.bloqueado) {
-    mensajes.push(await avisarBloqueo(item))
+    mensajes.push(await avisarBloqueo(item, opciones))
   } else if (antes?.bloqueado && !item.bloqueado) {
-    await avisarDesbloqueo(item, antes.motivo_bloqueo)
+    await avisarDesbloqueo(item, antes.motivo_bloqueo, opciones)
     mensajes.push("Bloqueo resuelto: se avisa al equipo y se cancelan los escalamientos.")
   }
-  if (cambios.length > 0) mensajes.push(await avisarReprogramacion(item, cambios))
+  if (cambios.length > 0) mensajes.push(await avisarReprogramacion(item, cambios, opciones))
 
   return mensajes.filter(Boolean).join(" ")
 }

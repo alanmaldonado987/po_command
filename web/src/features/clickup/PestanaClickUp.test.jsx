@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../../test/apiFalsa'
 import { renderizar } from '../../test/renderizar'
@@ -8,6 +9,7 @@ vi.mock('../../api/clickup', async () => (await import('../../test/apiFalsa')).c
 vi.mock('../../api/catalogos', async () => (await import('../../test/apiFalsa')).catalogos)
 vi.mock('../../api/items', async () => (await import('../../test/apiFalsa')).items)
 
+const usuario = userEvent.setup({ delay: null })
 const EQUIPO = { id: 't1', nombre: 'Ises' }
 
 beforeEach(() => api.reiniciarApiFalsa())
@@ -32,7 +34,7 @@ describe('PestanaClickUp', () => {
 
   it('muestra todas las tarjetas', async () => {
     abrirConEstado({})
-    for (const titulo of ['Conexión', 'Webhook y estado', 'Tableros', 'Destinos', 'Estados', 'Actividad']) {
+    for (const titulo of ['Conexión', 'Webhook y estado', 'Tableros', 'Destinos', 'Estados', 'Cola de envíos']) {
       expect(await screen.findByRole('heading', { name: titulo })).toBeInTheDocument()
     }
   })
@@ -58,6 +60,20 @@ describe('PestanaClickUp', () => {
     abrirConEstado({ token_configurado: true, equipo: EQUIPO, habilitado: true, sin_destino: 0 })
     await screen.findByRole('heading', { name: 'Destinos' })
     expect(screen.queryByText(/no tienen destino en ClickUp/)).not.toBeInTheDocument()
+  })
+
+  it('al pulsar «Con error» la cola se filtra a los fallidos', async () => {
+    abrirConEstado({ token_configurado: true, equipo: EQUIPO, habilitado: true, con_error: 3 })
+    await usuario.click(await screen.findByRole('button', { name: 'Con error: 3. Ver detalle' }))
+    expect(screen.getByRole('button', { name: 'Con error · 3' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByText('No hay envíos con error.')).toBeInTheDocument()
+    expect(api.clickup.listarColaClickUp).toHaveBeenCalledWith({ estados: ['Fallida'], limite: 20 })
+  })
+
+  it('al pulsar «Pendientes» la cola se filtra a los pendientes', async () => {
+    abrirConEstado({ token_configurado: true, equipo: EQUIPO, habilitado: true, pendientes: 5 })
+    await usuario.click(await screen.findByRole('button', { name: 'Pendientes: 5. Ver detalle' }))
+    expect(screen.getByRole('button', { name: 'Pendientes · 5' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('con la sincronización activa no muestra la guía', async () => {

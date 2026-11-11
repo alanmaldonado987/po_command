@@ -47,8 +47,10 @@ export const eliminarDestino = (id) => consultar(supabase.from('clickup_destino'
 
 const COLUMNAS_COLA = 'id, item_id, accion, estado, intentos, error, creado_en, procesado_en'
 
-export const listarColaClickUp = (limite = LIMITE_COLA) =>
-  consultar(supabase.from('clickup_cola').select(COLUMNAS_COLA).order('id', { ascending: false }).limit(limite))
+export const listarColaClickUp = ({ estados = null, limite = LIMITE_COLA } = {}) => {
+  const consulta = supabase.from('clickup_cola').select(COLUMNAS_COLA).order('id', { ascending: false }).limit(limite)
+  return consultar(estados ? consulta.in('estado', estados) : consulta)
+}
 
 export const listarPendientesDeItem = (itemId) =>
   consultar(supabase.from('clickup_cola').select(COLUMNAS_COLA).eq('item_id', itemId).eq('estado', 'Pendiente'))

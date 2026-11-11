@@ -43,15 +43,38 @@ describe('consultas de ClickUp', () => {
     await waitFor(() => expect(api.obtenerJerarquiaClickUp).toHaveBeenCalledWith('t1'))
   })
 
-  it('useDestinosClickUp y useColaClickUp leen sus tablas', async () => {
+  it('useDestinosClickUp lee sus tablas', async () => {
     api.listarDestinos.mockResolvedValue([{ id: 1 }])
-    api.listarColaClickUp.mockResolvedValue([{ id: 9 }])
     const { wrapper } = preparar()
     const destinos = renderHook(() => hooks.useDestinosClickUp(), { wrapper })
-    const cola = renderHook(() => hooks.useColaClickUp(15), { wrapper })
     await waitFor(() => expect(destinos.result.current.data).toEqual([{ id: 1 }]))
-    await waitFor(() => expect(cola.result.current.data).toEqual([{ id: 9 }]))
-    expect(api.listarColaClickUp).toHaveBeenCalledWith(15)
+  })
+
+  describe('useColaClickUp', () => {
+    const fila = (id, estado) => ({ id, estado })
+
+    it('con un filtro pide solo ese estado y avisa si puede haber más', async () => {
+      api.listarColaClickUp.mockResolvedValue([fila(3, 'Fallida'), fila(2, 'Fallida')])
+      const { wrapper } = preparar()
+      const { result } = renderHook(() => hooks.useColaClickUp('errores', 2), { wrapper })
+      await waitFor(() => expect(result.current.data).toEqual({ filas: [fila(3, 'Fallida'), fila(2, 'Fallida')], hayMas: true }))
+      expect(api.listarColaClickUp).toHaveBeenCalledWith({ estados: ['Fallida'], limite: 2 })
+    })
+
+    it('sin filtro pone primero los fallidos y luego los pendientes, y después los enviados', async () => {
+      api.listarColaClickUp.mockImplementation(async ({ estados }) =>
+        estados.includes('Enviada')
+          ? [fila(9, 'Enviada'), fila(8, 'Enviada')]
+          : [fila(7, 'Pendiente'), fila(6, 'Fallida'), fila(5, 'Pendiente'), fila(4, 'Fallida')],
+      )
+      const { wrapper } = preparar()
+      const { result } = renderHook(() => hooks.useColaClickUp('todos', 20), { wrapper })
+      await waitFor(() => expect(result.current.data).toBeDefined())
+      expect(result.current.data.filas.map((f) => f.id)).toEqual([6, 4, 7, 5, 9, 8])
+      expect(result.current.data.hayMas).toBe(false)
+      expect(api.listarColaClickUp).toHaveBeenCalledWith({ estados: ['Pendiente', 'Fallida'], limite: 100 })
+      expect(api.listarColaClickUp).toHaveBeenCalledWith({ estados: ['Enviada'], limite: 20 })
+    })
   })
 
   it('useTablerosClickUp lee los tableros', async () => {

@@ -1,3 +1,5 @@
+import type { ResultadoGuardado } from "./tipos.ts"
+
 export type EstadoApp = "No iniciado" | "En curso" | "Terminado, en etapa de pruebas" | "Terminado" | "Suspendido"
 
 export const ESTADOS_APP: EstadoApp[] = [
@@ -149,4 +151,5 @@ export interface ResultadoCambio {
   item_id?: number
   codigo?: string
   motivo?: string
+  guardado?: ResultadoGuardado
 }

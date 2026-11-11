@@ -183,6 +183,33 @@ El bloque estructurado solo se lee al crear en la app una tarea que nació en Cl
 - **Eliminar archiva.** Eliminar un ítem archiva la tarea en ClickUp; archivar o borrar la tarea elimina lógicamente el ítem (recuperable desde la base).
 - Los cambios que llegan de ClickUp no generan envíos de vuelta (la sesión marca `po.origen = clickup`).
 
+### Alertas por correo según el origen del cambio
+
+Los correos salen igual venga el cambio de la app o de ClickUp:
+
+| Regla | Qué la dispara | Desde la app | Desde ClickUp | Por tiempo (cron `tick`, cada 15 min) |
+|---|---|---|---|---|
+| Nuevo bloqueante | Un ítem pasa a bloqueado (etiqueta `bloqueado` en ClickUp) | Al guardar | Al llegar el cambio (webhook o reconciliación) | |
+| Bloqueo resuelto | Un ítem deja de estar bloqueado | Al guardar | Al llegar el cambio | |
+| Reprogramación | Cambia una fecha planificada (inicio/fecha límite en ClickUp) | Al guardar | Al llegar el cambio | |
+| Escalamiento de bloqueante | Sigue bloqueado más de N horas | | | Sí, cualquier origen |
+| Vencimiento de fecha planificada | Ítem vencido o próximo a vencer | | | Sí, cualquier origen |
+| Acuerdo vencido | Acuerdo de ceremonia sin cumplir | | | Sí, cualquier origen |
+| Recordatorio de ceremonia | N horas antes de cada ceremonia | | | Sí, cualquier origen |
+| Resumen semanal | Lunes 07:30 | | | Sí, cualquier origen |
+
+Las reglas por tiempo leen las tablas y vistas (`v_item`, `v_bloqueante_abierto`, `v_acuerdo`, `v_ceremonia`) y no dependen de dónde se hizo el cambio: un ítem bloqueado desde ClickUp también escala a las 48 h.
+
+Cómo funciona el aviso inmediato desde ClickUp:
+
+- `aplicar_cambio_clickup` devuelve la clave `guardado` (el resultado de `guardar_item` más `bloqueado`, el estado final) cuando hubo creación o cambios. La función Edge usa `antes`, `cambios` y `bloqueado` para decidir si hay algo que avisar.
+- `_shared/clickup_alertas.ts` llama a `alGuardarItem` (el mismo código que usa la app) con `origen: "ClickUp"`, así que el correo añade la fila «Cambio hecho en: ClickUp», y despacha la cola una vez al terminar.
+- Solo avisan los cambios de resultado `actualizado` que llegan por el **webhook** o por la **reconciliación normal**. No avisan la creación de ítems, `importar_existentes`, la reconciliación forzada ni la verificación de tareas vinculadas ausentes.
+- Sin avisos duplicados: cada aviso lleva una `clave_unica` (`CK:{ítem}:{date_updated de la tarea}:{regla}`), así que el mismo cambio visto por el webhook y por la reconciliación genera un solo correo. Además, el eco de un envío de la app a ClickUp no llega a `guardado`: la tarea trae la misma marca de tiempo que `clickup_sync_en` y el cambio se ignora; lo mismo ocurre si el ítem tiene un envío pendiente en la cola.
+- Tope: una reconciliación avisa como máximo de **15 ítems** (`MAX_ITEMS_CON_ALERTAS`); el resto se registra en el log de la función y se omite. Los ítems sin novedades (solo cambia el estado, por ejemplo) no consumen el tope.
+- Un fallo al encolar o enviar el correo se registra en el log y nunca interrumpe la sincronización. El modo simulación (`smtp_config.dry_run`) funciona igual que siempre.
+- Despliegue de esta mejora: `npx supabase db push --linked` (migración `20261106000010_clickup_alertas.sql`) y `npx supabase functions deploy alertas clickup clickup-webhook` (el webhook con `--no-verify-jwt`).
+
 ### Limitaciones
 
 - El movimiento entre listas depende de la API v3 de ClickUp, que no se pudo probar con una cuenta real (ver supuestos).

@@ -136,3 +136,36 @@ Deno.test("el HTML del motivo del bloqueo se escapa en el correo", async () => {
   assertEquals(cuerpo.includes("<script>alert(1)</script>"), false)
   assertStringIncludes(cuerpo, "&lt;script&gt;alert(1)&lt;/script&gt;")
 })
+
+Deno.test("sin opciones el correo no menciona el origen ni usa clave única (comportamiento de la app)", async () => {
+  const { base } = entorno({ id: 10, bloqueado: true })
+  await alGuardarItem(resultado(10))
+  const [alerta] = base.filas("alerta_programada")
+  assertEquals(alerta.clave_unica, null)
+  assertEquals(String(alerta.cuerpo_html).includes("Cambio hecho en"), false)
+})
+
+Deno.test("con origen añade la fila «Cambio hecho en» en los tres avisos", async () => {
+  const bloqueo = entorno({ id: 10, bloqueado: true })
+  await alGuardarItem(resultado(10), { origen: "ClickUp" })
+  assertStringIncludes(String(bloqueo.base.filas("alerta_programada")[0].cuerpo_html), "Cambio hecho en")
+
+  const desbloqueo = entorno({ id: 10, bloqueado: false })
+  await alGuardarItem(resultado(10, { antes: { bloqueado: true, motivo_bloqueo: "x" } }), { origen: "ClickUp" })
+  assertStringIncludes(String(desbloqueo.base.filas("alerta_programada")[0].cuerpo_html), "ClickUp")
+
+  const fechas = entorno({ id: 10, bloqueado: false })
+  await alGuardarItem(
+    resultado(10, { antes: { bloqueado: false, motivo_bloqueo: "" }, cambios: [{ campo: "plan_fin", antes: null, despues: "2026-01-15" }] }),
+    { origen: "ClickUp" },
+  )
+  assertStringIncludes(String(fechas.base.filas("alerta_programada")[0].cuerpo_html), "ClickUp")
+})
+
+Deno.test("con clave cada regla usa su propia clave única y repetir el mismo cambio no duplica el aviso", async () => {
+  const { base } = entorno({ id: 10, bloqueado: true })
+  const ambos = resultado(10, { cambios: [{ campo: "plan_fin", antes: "2026-01-01", despues: "2026-01-02" }] })
+  await alGuardarItem(ambos, { clave: "CK:10:111" })
+  await alGuardarItem(ambos, { clave: "CK:10:111" })
+  assertEquals(base.filas("alerta_programada").map((alerta) => alerta.clave_unica).sort(), ["CK:10:111:BLOQUEO_NUEVO", "CK:10:111:REPROGRAMACION"])
+})

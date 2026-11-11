@@ -1,8 +1,9 @@
+import { useRef, useState } from 'react'
 import { useEstadoClickUp } from '../../hooks/useClickUp'
 import { Alert, ErrorState, LoadingState } from '../../components/ui'
 import { AvisoSinDestino } from './AvisoSinDestino'
-import { TarjetaActividad } from './TarjetaActividad'
 import { TarjetaConexion } from './TarjetaConexion'
+import { TarjetaCola } from './TarjetaCola'
 import { TarjetaDestinos } from './TarjetaDestinos'
 import { TarjetaEstados } from './TarjetaEstados'
 import { TarjetaSincronizacion } from './TarjetaSincronizacion'
@@ -19,6 +20,13 @@ function pasoPendiente(estado) {
 
 export function PestanaClickUp() {
   const { data: estado, isLoading, error } = useEstadoClickUp()
+  const [filtroCola, setFiltroCola] = useState('todos')
+  const cola = useRef(null)
+
+  const verCola = (filtro) => {
+    setFiltroCola(filtro)
+    cola.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />
@@ -34,7 +42,7 @@ export function PestanaClickUp() {
       )}
       <div className="grid grid-cols-2 items-start gap-4 max-lg:grid-cols-1">
         <TarjetaConexion estado={estado} />
-        <TarjetaSincronizacion estado={estado} />
+        <TarjetaSincronizacion estado={estado} onVerCola={verCola} />
       </div>
       <AvisoSinDestino cantidad={estado.sin_destino} />
       <TarjetaTableros />
@@ -42,7 +50,9 @@ export function PestanaClickUp() {
         <TarjetaDestinos equipo={estado.equipo} />
       </div>
       <TarjetaEstados estado={estado} />
-      <TarjetaActividad />
+      <div ref={cola} id="cola-clickup" className="scroll-mt-4">
+        <TarjetaCola estado={estado} filtro={filtroCola} onFiltro={setFiltroCola} />
+      </div>
     </div>
   )
 }

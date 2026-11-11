@@ -33,6 +33,27 @@ describe('TarjetaSincronizacion · indicadores', () => {
     expect(screen.getByText('Último sync').nextSibling).not.toHaveTextContent('Nunca')
   })
 
+  it('con manejador, pendientes y con error son botones que piden ver la cola filtrada', async () => {
+    const alVerCola = vi.fn()
+    renderizar(<TarjetaSincronizacion estado={estado({ pendientes: 4, con_error: 2 })} onVerCola={alVerCola} />)
+    await usuario.click(screen.getByRole('button', { name: 'Pendientes: 4. Ver detalle' }))
+    await usuario.click(screen.getByRole('button', { name: 'Con error: 2. Ver detalle' }))
+    expect(alVerCola.mock.calls).toEqual([['pendientes'], ['errores']])
+  })
+
+  it('los contadores accionables se activan con el teclado', async () => {
+    const alVerCola = vi.fn()
+    renderizar(<TarjetaSincronizacion estado={estado({ con_error: 1 })} onVerCola={alVerCola} />)
+    screen.getByRole('button', { name: 'Con error: 1. Ver detalle' }).focus()
+    await usuario.keyboard('{Enter}')
+    expect(alVerCola).toHaveBeenCalledWith('errores')
+  })
+
+  it('sin manejador los contadores son solo informativos', () => {
+    renderizar(<TarjetaSincronizacion estado={estado({ pendientes: 4 })} />)
+    expect(screen.queryByRole('button', { name: /Ver detalle/ })).not.toBeInTheDocument()
+  })
+
   it('sin actividad indica webhook sin registrar y último sync «Nunca»', () => {
     renderizar(<TarjetaSincronizacion estado={estado()} />)
     expect(screen.getByText('Webhook').nextSibling).toHaveTextContent('Sin registrar')
